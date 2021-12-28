@@ -38,3 +38,9 @@ make menuconfig
 ```
 
 In menuconfig, enable the LoRaWAN Test App under "Application Configuration" → "Examples".
+
+Based on...
+
+-   [LoRaMac/fuota-test-01](https://github.com/lupyuen/LoRaMac-node-nuttx/blob/master/src/apps/LoRaMac/fuota-test-01/B-L072Z-LRWAN1)
+
+-   [LoRaMac/periodic-uplink-lpp](https://github.com/lupyuen/LoRaMac-node-nuttx/blob/master/src/apps/LoRaMac/periodic-uplink-lpp/B-L072Z-LRWAN1)
