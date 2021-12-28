@@ -4,6 +4,12 @@ Read the articles...
 
 -   ["LoRa SX1262 on Apache NuttX OS"](https://lupyuen.github.io/articles/sx1262)
 
+-   ["SPI on Apache NuttX OS"](https://lupyuen.github.io/articles/spi2)
+
+This repo depends on...
+
+-   [lupyuen/LoRaMac-node-nuttx](https://github.com/lupyuen/LoRaMac-node-nuttx)
+
 To add this repo to your NuttX project...
 
 ```bash
