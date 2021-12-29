@@ -621,9 +621,6 @@ static void handle_event(struct ble_npl_event *ev);
 static void init_event_queue(void) {
     puts("init_event_queue");
 
-    //  Init the Event Queue
-    ble_npl_eventq_init(&event_queue);
-
     //  Init the Test Event
     ble_npl_event_init(
         &event,        //  Event
