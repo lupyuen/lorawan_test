@@ -143,7 +143,7 @@ static void OnPingSlotPeriodicityChanged( uint8_t pingSlotPeriodicity );
 static void OnTxTimerEvent( struct ble_npl_event *event );
 
 static void init_test_event(void);
-static void handle_test_event_queue(void *arg);
+static void handle_event_queue(void *arg);
 
 uint8_t BoardGetBatteryLevel( void ) { return 0; } //// TODO
 uint32_t BoardGetRandomSeed( void ) { return 22; } //// TODO
@@ -261,9 +261,6 @@ int main(int argc, FAR char *argv[]) {
     //  TODO: BoardInitMcu( );
     //  TODO: BoardInitPeriph( );
 
-    //  For Testing: Init the Test Event
-    //  init_test_event();
-
     //  Compute the interval between transmissions based on Duty Cycle
     TxPeriodicity = APP_TX_DUTYCYCLE + randr( -APP_TX_DUTYCYCLE_RND, APP_TX_DUTYCYCLE_RND );
 
@@ -300,7 +297,7 @@ int main(int argc, FAR char *argv[]) {
     StartTxProcess( LORAMAC_HANDLER_TX_ON_TIMER );
 
     //  Handle LoRaWAN Events
-    handle_test_event_queue(NULL);  //  Never returns
+    handle_event_queue(NULL);  //  Never returns
 
     return 0;
 }
@@ -612,8 +609,8 @@ static void OnPingSlotPeriodicityChanged( uint8_t pingSlotPeriodicity )
 //  Event Queue
 
 /// LoRaWAN Event Loop that dequeues Events from the Event Queue and processes the Events
-static void handle_test_event_queue(void *arg) {
-    puts("handle_test_event_queue");
+static void handle_event_queue(void *arg) {
+    puts("handle_event_queue");
 
     //  Loop forever handling Events from the Event Queue
     for (;;) {
@@ -625,7 +622,7 @@ static void handle_test_event_queue(void *arg) {
 
         //  If no Event due to timeout, wait for next Event
         if (ev == NULL) { printf("."); continue; }
-        printf("handle_test_event_queue: ev=%p\n", ev);
+        printf("handle_event_queue: ev=%p\n", ev);
 
         //  Remove the Event from the Event Queue
         ble_npl_eventq_remove(&event_queue, ev);
