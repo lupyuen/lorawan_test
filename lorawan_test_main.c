@@ -142,8 +142,8 @@ static void OnPingSlotPeriodicityChanged( uint8_t pingSlotPeriodicity );
  */
 static void OnTxTimerEvent( struct ble_npl_event *event );
 
-static void init_event_queue(void);
-static void handle_event_queue(void *arg);
+static void init_test_event(void);
+static void handle_test_event_queue(void *arg);
 
 uint8_t BoardGetBatteryLevel( void ) { return 0; } //// TODO
 uint32_t BoardGetRandomSeed( void ) { return 22; } //// TODO
@@ -261,8 +261,8 @@ int main(int argc, FAR char *argv[]) {
     //  TODO: BoardInitMcu( );
     //  TODO: BoardInitPeriph( );
 
-    //  Init the LoRaWAN Event Queue
-    init_event_queue();
+    //  For Testing: Init the Test Event
+    //  init_test_event();
 
     //  Compute the interval between transmissions based on Duty Cycle
     TxPeriodicity = APP_TX_DUTYCYCLE + randr( -APP_TX_DUTYCYCLE_RND, APP_TX_DUTYCYCLE_RND );
@@ -300,7 +300,7 @@ int main(int argc, FAR char *argv[]) {
     StartTxProcess( LORAMAC_HANDLER_TX_ON_TIMER );
 
     //  Handle LoRaWAN Events
-    handle_event_queue(NULL);  //  Never returns
+    handle_test_event_queue(NULL);  //  Never returns
 
     return 0;
 }
@@ -611,27 +611,9 @@ static void OnPingSlotPeriodicityChanged( uint8_t pingSlotPeriodicity )
 ///////////////////////////////////////////////////////////////////////////////
 //  Event Queue
 
-/// Test Event to be added to the Event Queue
-static struct ble_npl_event event;
-
-static void handle_event_queue(void *arg);
-static void handle_event(struct ble_npl_event *ev);
-
-/// Init the Event Queue
-static void init_event_queue(void) {
-    puts("init_event_queue");
-
-    //  Init the Test Event
-    ble_npl_event_init(
-        &event,        //  Event
-        handle_event,  //  Event Handler Function
-        NULL           //  Argument to be passed to Event Handler
-    );
-}
-
 /// LoRaWAN Event Loop that dequeues Events from the Event Queue and processes the Events
-static void handle_event_queue(void *arg) {
-    puts("handle_event_queue");
+static void handle_test_event_queue(void *arg) {
+    puts("handle_test_event_queue");
 
     //  Loop forever handling Events from the Event Queue
     for (;;) {
@@ -643,12 +625,12 @@ static void handle_event_queue(void *arg) {
 
         //  If no Event due to timeout, wait for next Event
         if (ev == NULL) { printf("."); continue; }
-        printf("handle_event_queue: ev=%p\n", ev);
+        printf("handle_test_event_queue: ev=%p\n", ev);
 
         //  Remove the Event from the Event Queue
         ble_npl_eventq_remove(&event_queue, ev);
 
-        //  Trigger the Event Handler Function (handle_event)
+        //  Trigger the Event Handler Function (handle_test_event)
         ble_npl_event_run(ev);
 
         // Processes the LoRaMac events
@@ -675,16 +657,36 @@ static void handle_event_queue(void *arg) {
 }
 
 #ifdef NOTUSED
+///////////////////////////////////////////////////////////////////////////////
+//  Test Event
+
+/// Test Event to be added to the Event Queue
+static struct ble_npl_event test_event;
+
+static void handle_test_event(struct ble_npl_event *ev);
+
+/// For Testing: Init the Test Event
+static void init_test_event(void) {
+    puts("init_test_event");
+
+    //  Init the Test Event
+    ble_npl_event_init(
+        &test_event,        //  Event
+        handle_test_event,  //  Event Handler Function
+        NULL                //  Argument to be passed to Event Handler
+    );
+}
+
 /// For Testing: Enqueue a Test Event into the Event Queue
-static void put_event(char *buf, int len, int argc, char **argv) {
-    puts("put_event");
+static void put_test_event(char *buf, int len, int argc, char **argv) {
+    puts("put_test_event");
 
     //  Add the Event to the Event Queue
-    ble_npl_eventq_put(&event_queue, &event);
+    ble_npl_eventq_put(&event_queue, &test_event);
 }
-#endif  //  NOTUSED
 
 /// For Testing: Handle a Test Event
-static void handle_event(struct ble_npl_event *ev) {
-    puts("handle_event");
+static void handle_test_event(struct ble_npl_event *ev) {
+    puts("handle_test_event");
 }
+#endif  //  NOTUSED
