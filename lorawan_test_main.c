@@ -20,16 +20,16 @@
 #include <nuttx/config.h>
 #include <stdio.h>
 #include "firmwareVersion.h"
-#include "../../../nuttx/libs/liblorawan/src/apps/LoRaMac/common/githubVersion.h"
-#include "../../../nuttx/libs/liblorawan/src/boards/utilities.h"
-#include "../../../nuttx/libs/liblorawan/src/mac/region/RegionCommon.h"
-#include "../../../nuttx/libs/liblorawan/src/apps/LoRaMac/common/Commissioning.h"
-#include "../../../nuttx/libs/liblorawan/src/apps/LoRaMac/common/LmHandler/LmHandler.h"
-#include "../../../nuttx/libs/liblorawan/src/apps/LoRaMac/common/LmHandler/packages/LmhpCompliance.h"
-#include "../../../nuttx/libs/liblorawan/src/apps/LoRaMac/common/LmHandler/packages/LmhpClockSync.h"
-#include "../../../nuttx/libs/liblorawan/src/apps/LoRaMac/common/LmHandler/packages/LmhpRemoteMcastSetup.h"
-#include "../../../nuttx/libs/liblorawan/src/apps/LoRaMac/common/LmHandler/packages/LmhpFragmentation.h"
-#include "../../../nuttx/libs/liblorawan/src/apps/LoRaMac/common/LmHandlerMsgDisplay.h"
+#include "../libs/liblorawan/src/apps/LoRaMac/common/githubVersion.h"
+#include "../libs/liblorawan/src/boards/utilities.h"
+#include "../libs/liblorawan/src/mac/region/RegionCommon.h"
+#include "../libs/liblorawan/src/apps/LoRaMac/common/Commissioning.h"
+#include "../libs/liblorawan/src/apps/LoRaMac/common/LmHandler/LmHandler.h"
+#include "../libs/liblorawan/src/apps/LoRaMac/common/LmHandler/packages/LmhpCompliance.h"
+#include "../libs/liblorawan/src/apps/LoRaMac/common/LmHandler/packages/LmhpClockSync.h"
+#include "../libs/liblorawan/src/apps/LoRaMac/common/LmHandler/packages/LmhpRemoteMcastSetup.h"
+#include "../libs/liblorawan/src/apps/LoRaMac/common/LmHandler/packages/LmhpFragmentation.h"
+#include "../libs/liblorawan/src/apps/LoRaMac/common/LmHandlerMsgDisplay.h"
 
 #ifndef ACTIVE_REGION
 
@@ -307,6 +307,7 @@ int main(int argc, FAR char *argv[]) {
  */
 static void PrepareTxFrame( void )
 {
+    //  If we haven't joined the LoRaWAN Network, try again later
     if (LmHandlerIsBusy()) { puts("PrepareTxFrame: Busy"); return; }
 
     //  Send a message to LoRaWAN
@@ -322,17 +323,16 @@ static void PrepareTxFrame( void )
         .Port = 1,
     };
 
-    //  Check if the message can be transmitted
+    //  Validate the message size and check if it can be transmitted
     LoRaMacTxInfo_t txInfo;
     LoRaMacStatus_t status = LoRaMacQueryTxPossible(appData.BufferSize, &txInfo);
     printf("PrepareTxFrame: status=%d, maxSize=%d, currentSize=%d\n", status, txInfo.MaxPossibleApplicationDataSize, txInfo.CurrentPossiblePayloadSize);
     assert(status == LORAMAC_STATUS_OK);
 
     //  Transmit the message
-    if( LmHandlerSend( &appData, LmHandlerParams.IsTxConfirmed ) == LORAMAC_HANDLER_SUCCESS )
-    {
-        puts("PrepareTxFrame: Transmit OK");
-    }
+    LmHandlerErrorStatus_t sendStatus = LmHandlerSend( &appData, LmHandlerParams.IsTxConfirmed );
+    assert(sendStatus == LORAMAC_HANDLER_SUCCESS);
+    puts("PrepareTxFrame: Transmit OK");
 }
 
 static void StartTxProcess( LmHandlerTxEvents_t txEvent )
@@ -620,14 +620,15 @@ static void handle_event_queue(void *arg) {
             BLE_NPL_TIME_FOREVER  //  No Timeout (Wait forever for event)
         );
 
-        //  If no Event due to timeout, wait for next Event
+        //  If no Event due to timeout, wait for next Event.
+        //  Should never happen since we wait forever for an Event.
         if (ev == NULL) { printf("."); continue; }
         printf("handle_event_queue: ev=%p\n", ev);
 
         //  Remove the Event from the Event Queue
         ble_npl_eventq_remove(&event_queue, ev);
 
-        //  Trigger the Event Handler Function (handle_test_event)
+        //  Trigger the Event Handler Function
         ble_npl_event_run(ev);
 
         // Processes the LoRaMac events
