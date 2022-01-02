@@ -303,7 +303,7 @@ int main(int argc, FAR char *argv[]) {
 }
 
 /*!
- * Prepares the payload of the frame and transmits it.
+ * Prepare the payload of a Data Packet transmit it
  */
 static void PrepareTxFrame( void )
 {
@@ -315,6 +315,7 @@ static void PrepareTxFrame( void )
     printf("PrepareTxFrame: Transmit to LoRaWAN: %s (%d bytes)\n", msg, sizeof(msg));
 
     //  Compose the transmit request
+    assert(sizeof(msg) <= sizeof(AppDataBuffer));
     memcpy(AppDataBuffer, msg, sizeof(msg));
     LmHandlerAppData_t appData =
     {
