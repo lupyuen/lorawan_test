@@ -12,6 +12,8 @@ This repo depends on...
 
 -   [lupyuen/LoRaMac-node-nuttx](https://github.com/lupyuen/LoRaMac-node-nuttx)
 
+# Install App
+
 To add this repo to your NuttX project...
 
 ```bash
