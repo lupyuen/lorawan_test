@@ -776,20 +776,18 @@ static void init_entropy_pool(void) {
 #if defined(CONFIG_CRYPTO_RANDOM_POOL) && defined(CONFIG_LIBBL602_ADC)
     puts("init_entropy_pool");
 
-    //  Repeat 4 times to get good entropy
+    //  Repeat 4 times to get good entropy (16 bytes)
     for (int i = 0; i < 4; i++) {
         //  Read the Internal Temperature Sensor
         float temp = 0.0;
         get_tsen_adc(&temp, 1);
 
-        //  Add buffer of integers to entropy pool
-        up_rngaddentropy(
-            RND_SRC_SENSOR,                  //  Sensor Data
+        //  Add Sensor Data (4 bytes) to Entropy Pool
+        up_rngaddentropy(                    //  Add integers to Entropy Pool...
+            RND_SRC_SENSOR,                  //  Source is Sensor Data
             (FAR const uint32_t *) &temp,    //  Integers to be added
-            sizeof(temp) / sizeof(uint32_t)  //  How many integers
+            sizeof(temp) / sizeof(uint32_t)  //  How many integers (1)
         );
-
-        printf("sizeof(temp) / sizeof(uint32_t) = %d\n", sizeof(temp) / sizeof(uint32_t)); ////
     }
 
     //  Force reseeding random number generator from entropy pool
