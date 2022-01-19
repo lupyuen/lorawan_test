@@ -18,6 +18,7 @@
  * \author    Miguel Luis ( Semtech )
  */
 #include <nuttx/config.h>
+#include <nuttx/random.h>
 #include <stdio.h>
 #include "firmwareVersion.h"
 #include "../libs/liblorawan/src/apps/LoRaMac/common/githubVersion.h"
@@ -30,6 +31,10 @@
 #include "../libs/liblorawan/src/apps/LoRaMac/common/LmHandler/packages/LmhpRemoteMcastSetup.h"
 #include "../libs/liblorawan/src/apps/LoRaMac/common/LmHandler/packages/LmhpFragmentation.h"
 #include "../libs/liblorawan/src/apps/LoRaMac/common/LmHandlerMsgDisplay.h"
+#ifdef CONFIG_LIBBL602_ADC
+#include "../libs/libbl602_adc/bl602_adc.h"
+#include "../libs/libbl602_adc/bl602_glb.h"
+#endif  //  CONFIG_LIBBL602_ADC
 
 #ifndef ACTIVE_REGION
 
@@ -142,6 +147,7 @@ static void OnPingSlotPeriodicityChanged( uint8_t pingSlotPeriodicity );
  */
 static void OnTxTimerEvent( struct ble_npl_event *event );
 
+static void init_entropy_pool(void);
 static void init_test_event(void);
 static void handle_event_queue(void *arg);
 
@@ -260,6 +266,10 @@ static volatile uint32_t FileRxCrc = 0;
 int main(int argc, FAR char *argv[]) {
     //  TODO: BoardInitMcu( );
     //  TODO: BoardInitPeriph( );
+
+    //  If we are using Entropy Pool and the BL602 ADC is available,
+    //  add the Internal Temperature Sensor data to the Entropy Pool
+    init_entropy_pool();
 
     //  Compute the interval between transmissions based on Duty Cycle
     TxPeriodicity = APP_TX_DUTYCYCLE + randr( -APP_TX_DUTYCYCLE_RND, APP_TX_DUTYCYCLE_RND );
@@ -689,3 +699,101 @@ static void handle_test_event(struct ble_npl_event *ev) {
     puts("handle_test_event");
 }
 #endif  //  NOTUSED
+
+///////////////////////////////////////////////////////////////////////////////
+//  Entropy Pool
+
+#if defined(CONFIG_CRYPTO_RANDOM_POOL) && defined(CONFIG_LIBBL602_ADC)
+/// Read the Internal Temperature Sensor as Float. Returns 0 if successful.
+/// Based on bl_tsen_adc_get in https://github.com/lupyuen/bl_iot_sdk/blob/tsen/components/hal_drv/bl602_hal/bl_adc.c#L224-L282
+static int get_tsen_adc(
+    float *temp,      //  Pointer to float to store the temperature
+    uint8_t log_flag  //  0 to disable logging, 1 to enable logging
+) {
+    assert(temp != NULL);
+    static uint16_t tsen_offset = 0xFFFF;
+    float val = 0.0;
+
+    //  If the offset has not been fetched...
+    if (0xFFFF == tsen_offset) {
+        //  Define the ADC configuration
+        tsen_offset = 0;
+        ADC_CFG_Type adcCfg = {
+            .v18Sel=ADC_V18_SEL_1P82V,                /*!< ADC 1.8V select */
+            .v11Sel=ADC_V11_SEL_1P1V,                 /*!< ADC 1.1V select */
+            .clkDiv=ADC_CLK_DIV_32,                   /*!< Clock divider */
+            .gain1=ADC_PGA_GAIN_1,                    /*!< PGA gain 1 */
+            .gain2=ADC_PGA_GAIN_1,                    /*!< PGA gain 2 */
+            .chopMode=ADC_CHOP_MOD_AZ_PGA_ON,         /*!< ADC chop mode select */
+            .biasSel=ADC_BIAS_SEL_MAIN_BANDGAP,       /*!< ADC current form main bandgap or aon bandgap */
+            .vcm=ADC_PGA_VCM_1V,                      /*!< ADC VCM value */
+            .vref=ADC_VREF_2V,                        /*!< ADC voltage reference */
+            .inputMode=ADC_INPUT_SINGLE_END,          /*!< ADC input signal type */
+            .resWidth=ADC_DATA_WIDTH_16_WITH_256_AVERAGE,  /*!< ADC resolution and oversample rate */
+            .offsetCalibEn=0,                         /*!< Offset calibration enable */
+            .offsetCalibVal=0,                        /*!< Offset calibration value */
+        };
+        ADC_FIFO_Cfg_Type adcFifoCfg = {
+            .fifoThreshold = ADC_FIFO_THRESHOLD_1,
+            .dmaEn = DISABLE,
+        };
+
+        //  Enable and reset the ADC
+        GLB_Set_ADC_CLK(ENABLE,GLB_ADC_CLK_96M, 7);
+        ADC_Disable();
+        ADC_Enable();
+        ADC_Reset();
+
+        //  Configure the ADC and Internal Temperature Sensor
+        ADC_Init(&adcCfg);
+        ADC_Channel_Config(ADC_CHAN_TSEN_P, ADC_CHAN_GND, 0);
+        ADC_Tsen_Init(ADC_TSEN_MOD_INTERNAL_DIODE);
+        ADC_FIFO_Cfg(&adcFifoCfg);
+
+        //  Fetch the offset
+        BL_Err_Type rc = ADC_Trim_TSEN(&tsen_offset);
+        assert(rc != BL_ERROR);  //  Read efuse data failed
+
+        //  Must wait 100 milliseconds or returned temperature will be negative
+        usleep(100 * 1000);
+    }
+    //  Read the temperature based on the offset
+    val = TSEN_Get_Temp(tsen_offset);
+    if (log_flag) {
+        printf("offset = %d\n", tsen_offset);
+        printf("temperature = %f Celsius\n", val);
+    }
+    //  Return the temperature
+    *temp = val;
+    return 0;
+}
+#endif  //  CONFIG_CRYPTO_RANDOM_POOL && CONFIG_LIBBL602_ADC
+
+//  If we are using Entropy Pool and the BL602 ADC is available,
+//  add the Internal Temperature Sensor data to the Entropy Pool.
+//  This prevents duplicate Join Nonce during BL602 Auto Flash and Test.
+static void init_entropy_pool(void) {
+#if defined(CONFIG_CRYPTO_RANDOM_POOL) && defined(CONFIG_LIBBL602_ADC)
+    puts("init_entropy_pool");
+
+    //  Repeat 4 times to get good entropy
+    for (int i = 0; i < 4; i++) {
+        //  Read the Internal Temperature Sensor
+        float temp = 0.0;
+        get_tsen_adc(&temp, 1);
+
+        //  Add buffer of integers to entropy pool
+        up_rngaddentropy(
+            RND_SRC_SENSOR,                  //  Sensor Data
+            (FAR const uint32_t *) &temp,    //  Integers to be added
+            sizeof(temp) / sizeof(uint32_t)  //  How many integers
+        );
+
+        printf("sizeof(temp) / sizeof(uint32_t) = %d\n", sizeof(temp) / sizeof(uint32_t)); ////
+    }
+
+    //  Force reseeding random number generator from entropy pool
+    up_rngreseed();
+
+#endif  //  CONFIG_CRYPTO_RANDOM_POOL && CONFIG_LIBBL602_ADC
+}
