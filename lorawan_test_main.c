@@ -148,7 +148,6 @@ static void OnPingSlotPeriodicityChanged( uint8_t pingSlotPeriodicity );
 static void OnTxTimerEvent( struct ble_npl_event *event );
 
 static void init_entropy_pool(void);
-static void init_test_event(void);
 static void handle_event_queue(void *arg);
 
 uint8_t BoardGetBatteryLevel( void ) { return 0; } //// TODO
