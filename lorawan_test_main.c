@@ -17,9 +17,15 @@
  *
  * \author    Miguel Luis ( Semtech )
  */
+#if defined(__NuttX__) && defined(__clang__)  //  Workaround for NuttX with zig cc
+#include <arch/types.h>
+#include "../../nuttx/include/limits.h"
+#endif  //  defined(__NuttX__) && defined(__clang__)
+
+#include <stdio.h>
+#include <stdint.h>
 #include <nuttx/config.h>
 #include <nuttx/random.h>
-#include <stdio.h>
 #include "firmwareVersion.h"
 #include "../libs/liblorawan/src/apps/LoRaMac/common/githubVersion.h"
 #include "../libs/liblorawan/src/boards/utilities.h"
@@ -263,6 +269,11 @@ static volatile uint32_t FileRxCrc = 0;
  */
 
 int main(int argc, FAR char *argv[]) {
+#ifdef __clang__
+    puts("lorawan_test_main: Compiled with zig cc");
+#else
+    puts("lorawan_test_main: Compiled with gcc");
+#endif  //  __clang__
     //  TODO: BoardInitMcu( );
     //  TODO: BoardInitPeriph( );
 
